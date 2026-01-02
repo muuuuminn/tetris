@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"
     />
-    <title>Tetris Mobile (Left Board / Right Next+Hold)</title>
+    <title>Tetris Mobile (Gestures + Mini Buttons)</title>
     <style>
       :root {
         --bg: #0b0f14;
@@ -39,16 +39,16 @@
         box-sizing: border-box;
         padding: calc(env(safe-area-inset-top) + 10px) 10px
           calc(env(safe-area-inset-bottom) + 10px) 10px;
-        max-width: 680px;
+        max-width: 720px;
         margin: 0 auto;
 
         display: grid;
-        grid-template-rows: auto 1fr auto;
+        grid-template-rows: auto 1fr;
         gap: 10px;
         min-height: 0;
       }
 
-      /* Top bar: minimal always-visible */
+      /* Minimal top */
       .topbar {
         display: flex;
         align-items: center;
@@ -76,7 +76,7 @@
       }
       .pill b {
         color: var(--text);
-        font-weight: 800;
+        font-weight: 900;
       }
       .pill.ok {
         color: var(--accent);
@@ -85,28 +85,7 @@
         color: var(--danger);
       }
 
-      .topActions {
-        display: flex;
-        gap: 8px;
-        align-items: center;
-      }
-      .iconBtn {
-        background: rgba(16, 24, 38, 0.55);
-        border: 1px solid rgba(148, 163, 184, 0.22);
-        color: var(--text);
-        border-radius: 999px;
-        padding: 8px 12px;
-        font-size: 13px;
-        font-weight: 800;
-        cursor: pointer;
-        touch-action: none;
-      }
-      .iconBtn:active {
-        border-color: var(--btnh);
-        transform: translateY(1px);
-      }
-
-      /* Main: left board, right sidebar */
+      /* Main layout: left board, right next/hold */
       .main {
         display: grid;
         grid-template-columns: auto auto;
@@ -115,14 +94,12 @@
         justify-content: center;
         min-height: 0;
       }
-
       .boardWrap {
         display: flex;
         align-items: center;
         justify-content: center;
         min-height: 0;
       }
-
       .sidebar {
         display: grid;
         grid-template-rows: auto 1fr;
@@ -130,7 +107,6 @@
         min-height: 0;
         align-self: stretch;
       }
-
       .panel {
         background: var(--panel);
         border: 1px solid rgba(148, 163, 184, 0.18);
@@ -147,7 +123,7 @@
         color: var(--muted);
       }
 
-      /* canvas: DO NOT stretch in CSS; JS sets size */
+      /* canvas: サイズはJSで一元管理（CSSで伸ばさない） */
       canvas {
         display: block;
         background: #070b10;
@@ -158,76 +134,41 @@
         touch-action: none;
       }
 
-      /* Controls (sticky bottom) */
-      .controls {
-        position: sticky;
-        bottom: calc(env(safe-area-inset-bottom) + 8px);
-        background: rgba(16, 24, 38, 0.7);
-        border: 1px solid rgba(148, 163, 184, 0.18);
-        border-radius: 16px;
-        padding: 10px;
-        box-sizing: border-box;
-
+      /* Mini button bar (small & sturdy) */
+      .miniBar {
+        position: fixed;
+        left: 50%;
+        transform: translateX(-50%);
+        bottom: calc(env(safe-area-inset-bottom) + 10px);
         display: flex;
-        flex-direction: column;
-        gap: 10px;
-      }
-      .btnGrid3 {
-        display: grid;
-        grid-template-columns: 1fr 1fr 1fr;
-        gap: 10px;
-      }
-      .btnGrid2 {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 10px;
-      }
-      .btn {
-        user-select: none;
-        -webkit-user-select: none;
-        text-align: center;
-        background: var(--btn);
-        border: 1px solid var(--btnb);
-        border-radius: 14px;
-        padding: 14px 10px;
-        font-size: 16px;
-        font-weight: 900;
-        line-height: 1;
+        gap: 8px;
+        padding: 8px;
+        background: rgba(16, 24, 38, 0.72);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 999px;
+        box-shadow: 0 10px 30px var(--shadow);
+        z-index: 50;
         touch-action: none;
       }
-      .btn small {
-        display: block;
-        margin-top: 6px;
-        font-size: 11px;
-        font-weight: 700;
-        color: var(--muted);
-        line-height: 1.2;
-      }
-      .btn:active {
-        border-color: var(--btnh);
-        transform: translateY(1px);
-      }
-      .tinyActions {
-        display: flex;
-        gap: 10px;
-      }
-      .tinyActions button {
-        flex: 1;
+      .miniBtn {
+        border: 1px solid rgba(148, 163, 184, 0.26);
         background: var(--btn);
         color: var(--text);
-        border: 1px solid var(--btnb);
-        border-radius: 12px;
-        padding: 10px 10px;
+        border-radius: 999px;
+        padding: 10px 12px;
         font-size: 13px;
         font-weight: 900;
-        cursor: pointer;
+        line-height: 1;
+        user-select: none;
+        -webkit-user-select: none;
+        white-space: nowrap;
       }
-      .tinyActions button:active {
+      .miniBtn:active {
         border-color: var(--btnh);
         transform: translateY(1px);
       }
 
-      /* Overlay for hidden UI */
+      /* Overlay (Info) */
       .overlay {
         position: fixed;
         inset: 0;
@@ -244,7 +185,7 @@
       }
 
       .sheet {
-        max-width: 680px;
+        max-width: 720px;
         margin: 0 auto;
         height: 100%;
         display: flex;
@@ -295,15 +236,14 @@
         margin-top: 10px;
         color: var(--muted);
         font-size: 12px;
-        line-height: 1.55;
+        line-height: 1.6;
       }
 
+      /* Very narrow devices: give board more width by shrinking sidebar */
       @media (max-width: 380px) {
-        .btn {
-          padding: 12px 8px;
-        }
-        .btnGrid3 {
-          gap: 8px;
+        .miniBtn {
+          padding: 10px 10px;
+          font-size: 12px;
         }
       }
     </style>
@@ -317,9 +257,6 @@
           <span class="pill">Lv <b id="level">1</b></span>
           <span class="pill">Lines <b id="lines">0</b></span>
           <span class="pill" id="badge">Ready</span>
-        </div>
-        <div class="topActions">
-          <button class="iconBtn" id="btnInfo">Info</button>
         </div>
       </div>
 
@@ -339,38 +276,27 @@
           </div>
         </div>
       </div>
-
-      <div class="controls" id="controls">
-        <div class="btnGrid3">
-          <div class="btn" data-act="left">←<small>Move</small></div>
-          <div class="btn" data-act="rotate">⟳<small>Rotate</small></div>
-          <div class="btn" data-act="right">→<small>Move</small></div>
-        </div>
-
-        <div class="btnGrid3">
-          <div class="btn" data-act="down">↓<small>Soft</small></div>
-          <div class="btn" data-act="hard">⤓<small>Hard</small></div>
-          <div class="btn" data-act="hold">Hold<small>C</small></div>
-        </div>
-
-        <div class="btnGrid2">
-          <div class="btn" data-act="pause">Pause<small>P</small></div>
-          <div class="btn" data-act="restart">Restart<small>R</small></div>
-        </div>
-
-        <div class="tinyActions">
-          <button id="btnMute">Mute</button>
-          <button id="btnStart">Start</button>
-        </div>
-      </div>
     </div>
 
-    <!-- Hidden UI (Info) -->
+    <!-- Small & sturdy buttons -->
+    <div class="miniBar" id="miniBar">
+      <button class="miniBtn" data-act="startpause" id="btnStartPause">
+        Start
+      </button>
+      <button class="miniBtn" data-act="hold">Hold</button>
+      <button class="miniBtn" data-act="restart">Restart</button>
+      <button class="miniBtn" data-act="mute" id="btnMute">Mute</button>
+      <button class="miniBtn" data-act="info">Info</button>
+    </div>
+
+    <!-- Hidden UI (Info overlay) -->
     <div class="overlay" id="overlay" aria-hidden="true">
       <div class="sheet">
         <div class="sheetHeader">
           <div class="sheetTitle">Info</div>
-          <button class="iconBtn" id="btnClose">Close</button>
+          <button class="miniBtn" id="btnClose" style="padding: 10px 14px">
+            Close
+          </button>
         </div>
         <div class="sheetBody">
           <div class="sheetGrid">
@@ -405,11 +331,11 @@
           </div>
 
           <div class="hint">
-            <b>盤面ジェスチャ</b><br />
+            <b>盤面操作（基本はこれだけ）</b><br />
             タップ=回転 / 左右スワイプ=移動 / 下スワイプ=ソフト /
             上スワイプ=ハード<br /><br />
-            <b>キーボード(任意)</b><br />
-            ←→↓ / Z,X,↑ / Space / C / P / R / M
+            <b>補助ボタン</b><br />
+            Hold / Start・Pause / Restart / Mute / Info
           </div>
         </div>
       </div>
@@ -441,19 +367,18 @@
         const holdCanvas = document.getElementById('hold')
         const holdCtx = holdCanvas.getContext('2d')
 
-        const controls = document.getElementById('controls')
+        const miniBar = document.getElementById('miniBar')
 
         const elScore = document.getElementById('score')
         const elLevel = document.getElementById('level')
         const elLines = document.getElementById('lines')
         const elBadge = document.getElementById('badge')
 
+        const btnStartPause = document.getElementById('btnStartPause')
         const btnMute = document.getElementById('btnMute')
-        const btnStart = document.getElementById('btnStart')
 
         // Info overlay
         const overlay = document.getElementById('overlay')
-        const btnInfo = document.getElementById('btnInfo')
         const btnClose = document.getElementById('btnClose')
 
         const infoScore = document.getElementById('infoScore')
@@ -482,23 +407,23 @@
           const topbarH = document
             .querySelector('.topbar')
             .getBoundingClientRect().height
-          const controlsH = controls.getBoundingClientRect().height
+          const miniBarH = miniBar.getBoundingClientRect().height
 
           const vh = window.innerHeight
           const vw = document.documentElement.clientWidth
-          const containerW = Math.min(vw - 20, 680)
+          const containerW = Math.min(vw - 20, 720)
 
-          // Sidebar width (Next/Hold column)
-          SIDEBAR_W = Math.max(
-            120,
-            Math.min(180, Math.floor(containerW * 0.28))
-          )
+          // Sidebar width: keep small on phones to prioritize board
+          const phoneish = vw <= 520
+          SIDEBAR_W = phoneish
+            ? Math.max(110, Math.min(150, Math.floor(containerW * 0.26)))
+            : Math.max(140, Math.min(190, Math.floor(containerW * 0.28)))
 
           const gap = 10
           const boardMaxW = Math.max(160, containerW - SIDEBAR_W - gap)
 
-          // Height available for the main row
-          const availH = Math.max(240, vh - (topbarH + controlsH + 40))
+          // height available for main row (subtract fixed miniBar)
+          const availH = Math.max(240, vh - (topbarH + miniBarH + 40))
 
           const cellW = Math.floor(boardMaxW / COLS)
           const cellH = Math.floor(availH / ROWS)
@@ -508,13 +433,13 @@
           const boardH = ROWS * CELL
           setCanvasSize(board, boardW, boardH, ctx)
 
-          // Sidebar canvases: consistent widths
-          const sideInnerW = SIDEBAR_W - 20 // panel padding approx
-          const nextW = Math.max(110, sideInnerW)
-          const holdW = Math.max(110, sideInnerW)
+          // Sidebar canvases
+          const sideInnerW = SIDEBAR_W - 20
+          const nextW = Math.max(100, sideInnerW)
+          const holdW = Math.max(100, sideInnerW)
 
           const miniCell = Math.max(10, Math.min(16, Math.floor(nextW / 9)))
-          const nextH = miniCell * 10 + 30 // 5 pieces * (2 rows) + spacing
+          const nextH = miniCell * 10 + 30
           const holdH = miniCell * 4 + 18
 
           setCanvasSize(nextCanvas, nextW, nextH, nextCtx)
@@ -873,7 +798,7 @@
           return bag
         }
 
-        // ========= Audio (SFX) =========
+        // ========= Audio =========
         let audioCtx = null
         let muted = false
 
@@ -950,13 +875,9 @@
         let lockAcc = 0
         let lastAction = 'none'
 
-        const keyState = { left: false, right: false, down: false }
-        const touchHold = { left: false, right: false, down: false }
-
-        let moveDir = 0
-        let dasAcc = 0
-        let arrAcc = 0
-        let dasCharged = false
+        // Only what we need: down for soft drop (gesture sets it)
+        const keyState = { down: false }
+        const touchHold = { down: false }
 
         // ========= Helpers =========
         function makeGrid() {
@@ -1157,6 +1078,7 @@
             running = false
             gameOver = true
             setBadge('Game Over', true)
+            btnStartPause.textContent = 'Start'
             SFX.gameover()
           } else {
             SFX.lock()
@@ -1184,6 +1106,7 @@
             running = false
             gameOver = true
             setBadge('Game Over', true)
+            btnStartPause.textContent = 'Start'
             SFX.gameover()
           }
         }
@@ -1297,7 +1220,6 @@
           elLevel.textContent = String(level)
           elLines.textContent = String(lines)
 
-          // keep overlay stats in sync
           infoScore.textContent = String(score)
           infoLevel.textContent = String(level)
           infoLines.textContent = String(lines)
@@ -1321,190 +1243,116 @@
           render()
         }
 
-        // ========= Input repeat =========
-        function updateMoveDir() {
-          const l = keyState.left || touchHold.left
-          const r = keyState.right || touchHold.right
-          if (l && !r) return -1
-          if (r && !l) return 1
-          return 0
-        }
-        function beginHorizontal(dir) {
-          if (dir === 0) return
-          moveDir = dir
-          dasAcc = 0
-          arrAcc = 0
-          dasCharged = false
-
-          if (running && !paused && !gameOver) {
-            if (tryMove(dir, 0)) SFX.move()
-            render()
-          }
+        // ========= Input (minimal) =========
+        function toggleMute() {
+          muted = !muted
+          btnMute.textContent = muted ? 'Unmute' : 'Mute'
         }
 
-        // ========= Keyboard =========
-        function handleKeyDown(e) {
+        function start() {
           ensureAudio()
           if (audioCtx && audioCtx.state === 'suspended')
             audioCtx.resume().catch(() => {})
 
-          const code = e.code
-          if (
-            [
-              'ArrowLeft',
-              'ArrowRight',
-              'ArrowDown',
-              'ArrowUp',
-              'Space',
-            ].includes(code)
-          )
-            e.preventDefault()
-
-          if (code === 'KeyM') {
-            toggleMute()
-            return
-          }
-          if (code === 'KeyR') {
-            restart()
-            return
-          }
-          if (code === 'KeyP') {
-            togglePause()
-            return
-          }
-          if (
-            code === 'KeyC' ||
-            code === 'ShiftLeft' ||
-            code === 'ShiftRight'
-          ) {
-            doHold()
-            render()
-            return
-          }
-
-          if (!running || paused || gameOver) return
-
-          if (code === 'ArrowUp' || code === 'KeyX') {
-            tryRotate(1)
-            render()
-            return
-          }
-          if (code === 'KeyZ') {
-            tryRotate(-1)
-            render()
-            return
-          }
-          if (code === 'Space') {
-            hardDrop()
-            render()
-            return
-          }
-
-          if (code === 'ArrowDown') {
-            keyState.down = true
-            SFX.soft()
-            return
-          }
-
-          if (code === 'ArrowLeft' && !keyState.left) {
-            keyState.left = true
-            beginHorizontal(updateMoveDir())
-            return
-          }
-          if (code === 'ArrowRight' && !keyState.right) {
-            keyState.right = true
-            beginHorizontal(updateMoveDir())
-            return
+          if (gameOver) restart()
+          if (!running) {
+            running = true
+            paused = false
+            setBadge('Running', false)
+            btnStartPause.textContent = 'Pause'
+            lastTime = performance.now()
           }
         }
-        function handleKeyUp(e) {
-          const code = e.code
-          if (code === 'ArrowDown') {
-            keyState.down = false
+
+        function togglePause() {
+          if (gameOver) return
+          if (!running) {
+            start()
             return
           }
-          if (code === 'ArrowLeft') keyState.left = false
-          if (code === 'ArrowRight') keyState.right = false
-
-          const dir = updateMoveDir()
-          if (dir !== moveDir) {
-            moveDir = dir
-            dasAcc = 0
-            arrAcc = 0
-            dasCharged = false
-            if (dir !== 0) beginHorizontal(dir)
-          }
+          paused = !paused
+          setBadge(paused ? 'Paused' : 'Running', false)
+          btnStartPause.textContent = paused ? 'Start' : 'Pause'
+          if (!paused) lastTime = performance.now()
         }
-        window.addEventListener('keydown', handleKeyDown, { passive: false })
-        window.addEventListener('keyup', handleKeyUp)
 
-        // ========= Touch buttons =========
-        function bindButtons() {
-          const buttons = [...document.querySelectorAll('.btn[data-act]')]
+        function restart() {
+          grid = makeGrid()
+          nextQueue = []
+          bag = []
+          hold = null
+          holdUsed = false
 
-          function setHold(act, v) {
-            if (act === 'left') touchHold.left = v
-            if (act === 'right') touchHold.right = v
-            if (act === 'down') touchHold.down = v
+          score = 0
+          level = 1
+          lines = 0
+          combo = -1
+          b2b = false
+          lastLabel = '-'
 
-            const dir = updateMoveDir()
-            if (dir !== moveDir) beginHorizontal(dir)
-          }
+          running = true
+          paused = false
+          gameOver = false
+          gravAcc = 0
+          lockAcc = 0
+          lastAction = 'none'
+          keyState.down = false
+          touchHold.down = false
 
-          buttons.forEach((btn) => {
-            const act = btn.dataset.act
+          fillQueue()
+          current = spawn(takeNext())
 
-            const onDown = (ev) => {
-              ev.preventDefault()
-              ensureAudio()
-              if (audioCtx && audioCtx.state === 'suspended')
-                audioCtx.resume().catch(() => {})
+          setBadge('Running', false)
+          btnStartPause.textContent = 'Pause'
+          lastTime = performance.now()
+          render()
+        }
 
-              if (act === 'left' || act === 'right' || act === 'down') {
-                setHold(act, true)
-                if (act === 'down') SFX.soft()
-                return
-              }
-              if (act === 'rotate') {
-                if (running && !paused && !gameOver) tryRotate(1)
-                render()
-                return
-              }
-              if (act === 'hard') {
-                if (running && !paused && !gameOver) hardDrop()
-                render()
-                return
-              }
-              if (act === 'hold') {
-                doHold()
-                render()
-                return
-              }
-              if (act === 'pause') {
-                togglePause()
-                return
-              }
-              if (act === 'restart') {
-                restart()
-                return
-              }
-            }
-            const onUp = (ev) => {
-              ev.preventDefault()
-              if (act === 'left' || act === 'right' || act === 'down') {
-                setHold(act, false)
-              }
-            }
+        // ========= Mini buttons =========
+        function bindMiniButtons() {
+          const btns = [...document.querySelectorAll('.miniBtn[data-act]')]
+          btns.forEach((b) => {
+            b.addEventListener(
+              'pointerdown',
+              (ev) => {
+                ev.preventDefault()
+                ensureAudio()
+                if (audioCtx && audioCtx.state === 'suspended')
+                  audioCtx.resume().catch(() => {})
 
-            btn.addEventListener('pointerdown', onDown, { passive: false })
-            btn.addEventListener('pointerup', onUp, { passive: false })
-            btn.addEventListener('pointercancel', onUp, { passive: false })
-            btn.addEventListener('pointerleave', onUp, { passive: false })
+                const act = b.dataset.act
+                if (act === 'startpause') {
+                  togglePause()
+                  return
+                }
+                if (act === 'hold') {
+                  doHold()
+                  render()
+                  return
+                }
+                if (act === 'restart') {
+                  restart()
+                  return
+                }
+                if (act === 'mute') {
+                  toggleMute()
+                  return
+                }
+                if (act === 'info') {
+                  openInfo()
+                  return
+                }
+              },
+              { passive: false }
+            )
           })
         }
-        bindButtons()
 
         // ========= Swipe on board =========
+        // Tap: rotate
+        // Left/Right swipe: move
+        // Down swipe: soft drop (hold)
+        // Up swipe: hard drop
         let pointerActive = false
         let pStart = null
         let pLastX = 0
@@ -1547,6 +1395,7 @@
             }
 
             touchHold.down = dyAll > 24
+            if (touchHold.down) SFX.soft()
 
             if (dyAll < -60) {
               touchHold.down = false
@@ -1571,9 +1420,14 @@
             const isTap = Math.abs(dx) < 10 && Math.abs(dy) < 10 && dt < 220
             touchHold.down = false
 
-            if (isTap && running && !paused && !gameOver) {
-              tryRotate(1)
-              render()
+            if (isTap) {
+              if (!running || paused || gameOver) {
+                // tap to start if not running
+                start()
+              } else {
+                tryRotate(1)
+                render()
+              }
             }
             pointerActive = false
           },
@@ -1595,19 +1449,93 @@
           overlay.classList.remove('show')
           overlay.setAttribute('aria-hidden', 'true')
         }
-        btnInfo.addEventListener('click', () => openInfo())
         btnClose.addEventListener('click', () => closeInfo())
         overlay.addEventListener('click', (e) => {
           if (e.target === overlay) closeInfo()
         })
 
-        // ========= Mute/Start =========
-        function toggleMute() {
-          muted = !muted
-          btnMute.textContent = muted ? 'Unmute' : 'Mute'
-        }
-        btnMute.addEventListener('click', () => toggleMute())
-        btnStart.addEventListener('click', () => start())
+        // ========= Keyboard (optional) =========
+        window.addEventListener(
+          'keydown',
+          (e) => {
+            const code = e.code
+            if (
+              [
+                'ArrowLeft',
+                'ArrowRight',
+                'ArrowDown',
+                'ArrowUp',
+                'Space',
+              ].includes(code)
+            )
+              e.preventDefault()
+
+            ensureAudio()
+            if (audioCtx && audioCtx.state === 'suspended')
+              audioCtx.resume().catch(() => {})
+
+            if (code === 'KeyM') {
+              toggleMute()
+              return
+            }
+            if (code === 'KeyR') {
+              restart()
+              return
+            }
+            if (code === 'KeyP') {
+              togglePause()
+              return
+            }
+            if (
+              code === 'KeyC' ||
+              code === 'ShiftLeft' ||
+              code === 'ShiftRight'
+            ) {
+              doHold()
+              render()
+              return
+            }
+
+            if (!running || paused || gameOver) return
+
+            if (code === 'ArrowUp' || code === 'KeyX') {
+              tryRotate(1)
+              render()
+              return
+            }
+            if (code === 'KeyZ') {
+              tryRotate(-1)
+              render()
+              return
+            }
+            if (code === 'Space') {
+              hardDrop()
+              render()
+              return
+            }
+
+            // simple moves on desktop
+            if (code === 'ArrowLeft') {
+              if (tryMove(-1, 0)) SFX.move()
+              render()
+              return
+            }
+            if (code === 'ArrowRight') {
+              if (tryMove(1, 0)) SFX.move()
+              render()
+              return
+            }
+            if (code === 'ArrowDown') {
+              keyState.down = true
+              return
+            }
+          },
+          { passive: false }
+        )
+
+        window.addEventListener('keyup', (e) => {
+          if (e.code === 'ArrowDown') keyState.down = false
+        })
 
         // ========= Loop =========
         function tick(time) {
@@ -1620,31 +1548,6 @@
 
           const dt = time - lastTime
           lastTime = time
-
-          // horizontal (DAS/ARR)
-          const desiredDir = updateMoveDir()
-          if (desiredDir !== moveDir) {
-            moveDir = desiredDir
-            dasAcc = 0
-            arrAcc = 0
-            dasCharged = false
-            if (moveDir !== 0) beginHorizontal(moveDir)
-          } else if (moveDir !== 0) {
-            dasAcc += dt
-            if (!dasCharged) {
-              if (dasAcc >= DAS_MS) {
-                dasCharged = true
-                arrAcc = 0
-              }
-            } else {
-              arrAcc += dt
-              while (arrAcc >= ARR_MS) {
-                arrAcc -= ARR_MS
-                if (tryMove(moveDir, 0)) SFX.move()
-                else break
-              }
-            }
-          }
 
           // gravity / soft
           const soft = keyState.down || touchHold.down
@@ -1672,68 +1575,6 @@
           requestAnimationFrame(tick)
         }
 
-        // ========= Control flow =========
-        function start() {
-          ensureAudio()
-          if (audioCtx && audioCtx.state === 'suspended')
-            audioCtx.resume().catch(() => {})
-
-          if (gameOver) restart()
-          if (!running) {
-            running = true
-            paused = false
-            setBadge('Running', false)
-            lastTime = performance.now()
-          }
-        }
-
-        function togglePause() {
-          if (gameOver) return
-          if (!running) {
-            start()
-            return
-          }
-          paused = !paused
-          setBadge(paused ? 'Paused' : 'Running', false)
-          if (!paused) lastTime = performance.now()
-        }
-
-        function restart() {
-          grid = makeGrid()
-          nextQueue = []
-          bag = []
-          hold = null
-          holdUsed = false
-
-          score = 0
-          level = 1
-          lines = 0
-          combo = -1
-          b2b = false
-          lastLabel = '-'
-
-          running = true
-          paused = false
-          gameOver = false
-          gravAcc = 0
-          lockAcc = 0
-          lastAction = 'none'
-
-          keyState.left = keyState.right = keyState.down = false
-          touchHold.left = touchHold.right = touchHold.down = false
-          moveDir = 0
-          dasAcc = 0
-          arrAcc = 0
-          dasCharged = false
-
-          fillQueue()
-          current = spawn(takeNext())
-
-          setBadge('Running', false)
-          lastTime = performance.now()
-          render()
-        }
-
         // ========= Init =========
         function init() {
           grid = makeGrid()
@@ -1755,6 +1596,9 @@
 
           setBadge('Ready', false)
           btnMute.textContent = 'Mute'
+          btnStartPause.textContent = 'Start'
+
+          bindMiniButtons()
 
           requestAnimationFrame(() => {
             resizeAll()
