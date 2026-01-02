@@ -1,0 +1,1632 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"
+    />
+    <title>Tetris (SRS/DAS/ARR/LockDelay/T-Spin/SFX/Touch)</title>
+    <style>
+      :root {
+        --bg: #0b0f14;
+        --panel: #101826;
+        --text: #e6edf3;
+        --muted: #94a3b8;
+        --grid: #1f2a37;
+        --accent: #22c55e;
+        --danger: #ef4444;
+        --btn: #0f172a;
+        --btnb: rgba(148, 163, 184, 0.22);
+        --btnh: rgba(148, 163, 184, 0.45);
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+          'Helvetica Neue', Arial;
+      }
+      .wrap {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100%;
+        padding: 14px;
+        box-sizing: border-box;
+      }
+      .app {
+        display: grid;
+        grid-template-columns: 190px 1fr 190px;
+        gap: 14px;
+        align-items: start;
+        max-width: 820px;
+        width: 100%;
+      }
+      .panel {
+        background: var(--panel);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 14px;
+        padding: 12px;
+        box-sizing: border-box;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+      }
+      .title {
+        font-size: 13px;
+        color: var(--muted);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        margin: 0 0 10px 0;
+      }
+      .row {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        font-size: 14px;
+        margin: 6px 0;
+      }
+      .value {
+        font-variant-numeric: tabular-nums;
+        color: var(--text);
+      }
+      .hint {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.55;
+        margin-top: 10px;
+        white-space: pre-line;
+      }
+      .game {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        position: relative;
+      }
+      canvas {
+        display: block;
+        background: #070b10;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        border-radius: 12px;
+        box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+        image-rendering: pixelated;
+        touch-action: none;
+      }
+      .toolbar {
+        display: flex;
+        gap: 8px;
+        width: 100%;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+      button {
+        background: var(--btn);
+        color: var(--text);
+        border: 1px solid var(--btnb);
+        border-radius: 10px;
+        padding: 8px 10px;
+        cursor: pointer;
+        font-size: 13px;
+      }
+      button:hover {
+        border-color: var(--btnh);
+      }
+      button:active {
+        transform: translateY(1px);
+      }
+      .status {
+        font-size: 13px;
+        color: var(--muted);
+        text-align: center;
+        min-height: 18px;
+      }
+      .badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .gameover {
+        color: var(--danger);
+        font-weight: 600;
+      }
+      .ok {
+        color: var(--accent);
+        font-weight: 600;
+      }
+
+      /* Touch controls */
+      .touch {
+        display: none;
+        width: 100%;
+        max-width: 420px;
+        gap: 10px;
+        grid-template-columns: 1fr 1fr 1fr;
+        margin-top: 4px;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      .touch .tbtn {
+        padding: 12px 10px;
+        border-radius: 12px;
+        background: var(--btn);
+        border: 1px solid var(--btnb);
+        text-align: center;
+        font-size: 14px;
+      }
+      .touch .tbtn:active {
+        border-color: var(--btnh);
+        transform: translateY(1px);
+      }
+      .touch .wide {
+        grid-column: span 3;
+      }
+      .touch .row2 {
+        grid-column: span 2;
+      }
+      .touch small {
+        display: block;
+        color: var(--muted);
+        font-size: 11px;
+        margin-top: 2px;
+      }
+
+      @media (max-width: 820px) {
+        .app {
+          grid-template-columns: 1fr;
+        }
+        .panel {
+          order: 2;
+        }
+        .game {
+          order: 1;
+        }
+        .touch {
+          display: grid;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="app">
+        <div class="panel">
+          <h3 class="title">Hold</h3>
+          <canvas id="hold" width="170" height="120"></canvas>
+
+          <h3 class="title" style="margin-top: 12px">Stats</h3>
+          <div class="row">
+            <span>Score</span><span class="value" id="score">0</span>
+          </div>
+          <div class="row">
+            <span>Level</span><span class="value" id="level">1</span>
+          </div>
+          <div class="row">
+            <span>Lines</span><span class="value" id="lines">0</span>
+          </div>
+          <div class="row">
+            <span>Combo</span><span class="value" id="combo">-</span>
+          </div>
+          <div class="row">
+            <span>B2B</span><span class="value" id="b2b">-</span>
+          </div>
+          <div class="row">
+            <span>Last</span><span class="value" id="last">-</span>
+          </div>
+
+          <div class="hint">
+            操作(PC): ← → : 移動（DAS/ARR） ↓ : ソフトドロップ ↑ / X :
+            右回転（SRS） Z : 左回転（SRS） Space : ハードドロップ C / Shift :
+            ホールド P : 一時停止 R : リスタート M : ミュート
+          </div>
+
+          <div class="hint" style="margin-top: 10px">
+            タッチ: ・下のボタン操作 ・盤面スワイプ左右=移動 ・タップ=回転
+            ・下スワイプ=ソフトドロップ ・上スワイプ=ハードドロップ
+          </div>
+        </div>
+
+        <div class="game">
+          <canvas id="board" width="320" height="640"></canvas>
+
+          <div class="toolbar">
+            <button id="btnStart">Start</button>
+            <button id="btnPause">Pause</button>
+            <button id="btnRestart">Restart</button>
+            <button id="btnMute">Mute</button>
+            <span class="badge" id="badge">Ready</span>
+          </div>
+          <div class="status" id="status"></div>
+
+          <!-- Touch controls (shown on small screens) -->
+          <div class="touch" id="touch">
+            <div class="tbtn" data-act="left">←<small>move</small></div>
+            <div class="tbtn" data-act="rotate">⟳<small>rotate</small></div>
+            <div class="tbtn" data-act="right">→<small>move</small></div>
+
+            <div class="tbtn" data-act="down">↓<small>soft</small></div>
+            <div class="tbtn" data-act="hard" class="row2">
+              ⤓<small>hard</small>
+            </div>
+            <div class="tbtn" data-act="hold">Hold<small>C</small></div>
+
+            <div class="tbtn wide" data-act="pause">
+              Pause / Resume<small>P</small>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3 class="title">Next</h3>
+          <canvas id="next" width="170" height="380"></canvas>
+          <div class="hint" style="margin-top: 10px">
+            実装済: ・7バッグ ・SRS回転キック ・DAS/ARR ・ロックディレイ
+            ・T-Spin判定/スコア + B2B/Combo ・SFX（WebAudio） ・タッチ操作
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      ;(() => {
+        // ========= Config =========
+        const COLS = 10
+        const ROWS = 20
+        const HIDDEN = 2
+        const CELL = 32
+
+        // Input tuning
+        const DAS_MS = 140 // Delayed Auto Shift
+        const ARR_MS = 35 // Auto Repeat Rate
+        const SOFT_DROP_MS = 28 // gravity while soft dropping
+        const LOCK_DELAY_MS = 500 // lock delay
+
+        // Level speed: clamp for playability
+        function gravityMs(level) {
+          // L1: 800ms, down -55ms each level, min 80ms
+          return Math.max(80, 800 - (level - 1) * 55)
+        }
+
+        // ========= Canvas / DOM =========
+        const board = document.getElementById('board')
+        const ctx = board.getContext('2d')
+        board.width = COLS * CELL
+        board.height = ROWS * CELL
+
+        const nextCanvas = document.getElementById('next')
+        const nextCtx = nextCanvas.getContext('2d')
+
+        const holdCanvas = document.getElementById('hold')
+        const holdCtx = holdCanvas.getContext('2d')
+
+        const elScore = document.getElementById('score')
+        const elLevel = document.getElementById('level')
+        const elLines = document.getElementById('lines')
+        const elCombo = document.getElementById('combo')
+        const elB2B = document.getElementById('b2b')
+        const elLast = document.getElementById('last')
+        const elStatus = document.getElementById('status')
+        const elBadge = document.getElementById('badge')
+
+        const btnStart = document.getElementById('btnStart')
+        const btnPause = document.getElementById('btnPause')
+        const btnRestart = document.getElementById('btnRestart')
+        const btnMute = document.getElementById('btnMute')
+
+        const touchRoot = document.getElementById('touch')
+
+        // ========= Pieces / Colors =========
+        const COLORS = {
+          I: '#38bdf8',
+          O: '#facc15',
+          T: '#a78bfa',
+          S: '#22c55e',
+          Z: '#ef4444',
+          J: '#60a5fa',
+          L: '#fb923c',
+          G: 'rgba(255,255,255,.18)',
+        }
+
+        // 4x4 definitions. For JLSTZ, rotation center treated like SRS (effectively around (1,2) in our coord choice).
+        // This matches typical spawn orientations and allows SRS kick tables to work as expected.
+        const PIECES = {
+          I: [
+            [
+              [0, 1],
+              [1, 1],
+              [2, 1],
+              [3, 1],
+            ],
+            [
+              [2, 0],
+              [2, 1],
+              [2, 2],
+              [2, 3],
+            ],
+            [
+              [0, 2],
+              [1, 2],
+              [2, 2],
+              [3, 2],
+            ],
+            [
+              [1, 0],
+              [1, 1],
+              [1, 2],
+              [1, 3],
+            ],
+          ],
+          O: [
+            [
+              [1, 1],
+              [2, 1],
+              [1, 2],
+              [2, 2],
+            ],
+            [
+              [1, 1],
+              [2, 1],
+              [1, 2],
+              [2, 2],
+            ],
+            [
+              [1, 1],
+              [2, 1],
+              [1, 2],
+              [2, 2],
+            ],
+            [
+              [1, 1],
+              [2, 1],
+              [1, 2],
+              [2, 2],
+            ],
+          ],
+          T: [
+            [
+              [1, 1],
+              [0, 2],
+              [1, 2],
+              [2, 2],
+            ],
+            [
+              [1, 1],
+              [1, 2],
+              [2, 2],
+              [1, 3],
+            ],
+            [
+              [0, 2],
+              [1, 2],
+              [2, 2],
+              [1, 3],
+            ],
+            [
+              [1, 1],
+              [0, 2],
+              [1, 2],
+              [1, 3],
+            ],
+          ],
+          S: [
+            [
+              [1, 1],
+              [2, 1],
+              [0, 2],
+              [1, 2],
+            ],
+            [
+              [1, 1],
+              [1, 2],
+              [2, 2],
+              [2, 3],
+            ],
+            [
+              [1, 2],
+              [2, 2],
+              [0, 3],
+              [1, 3],
+            ],
+            [
+              [0, 1],
+              [0, 2],
+              [1, 2],
+              [1, 3],
+            ],
+          ],
+          Z: [
+            [
+              [0, 1],
+              [1, 1],
+              [1, 2],
+              [2, 2],
+            ],
+            [
+              [2, 1],
+              [1, 2],
+              [2, 2],
+              [1, 3],
+            ],
+            [
+              [0, 2],
+              [1, 2],
+              [1, 3],
+              [2, 3],
+            ],
+            [
+              [1, 1],
+              [0, 2],
+              [1, 2],
+              [0, 3],
+            ],
+          ],
+          J: [
+            [
+              [0, 1],
+              [0, 2],
+              [1, 2],
+              [2, 2],
+            ],
+            [
+              [1, 1],
+              [2, 1],
+              [1, 2],
+              [1, 3],
+            ],
+            [
+              [0, 2],
+              [1, 2],
+              [2, 2],
+              [2, 3],
+            ],
+            [
+              [1, 1],
+              [1, 2],
+              [0, 3],
+              [1, 3],
+            ],
+          ],
+          L: [
+            [
+              [2, 1],
+              [0, 2],
+              [1, 2],
+              [2, 2],
+            ],
+            [
+              [1, 1],
+              [1, 2],
+              [1, 3],
+              [2, 3],
+            ],
+            [
+              [0, 2],
+              [1, 2],
+              [2, 2],
+              [0, 3],
+            ],
+            [
+              [0, 1],
+              [1, 1],
+              [1, 2],
+              [1, 3],
+            ],
+          ],
+        }
+        const KEYS = Object.keys(PIECES)
+
+        // ========= SRS Kick Tables =========
+        // SRS tables are defined with +Y as UP; our grid +Y is DOWN => invert Y in tables.
+        // JLSTZ: CW and CCW
+        const JLSTZ_CW = {
+          '0>1': [
+            [0, 0],
+            [-1, 0],
+            [-1, 1],
+            [0, -2],
+            [-1, -2],
+          ],
+          '1>2': [
+            [0, 0],
+            [1, 0],
+            [1, -1],
+            [0, 2],
+            [1, 2],
+          ],
+          '2>3': [
+            [0, 0],
+            [1, 0],
+            [1, 1],
+            [0, -2],
+            [1, -2],
+          ],
+          '3>0': [
+            [0, 0],
+            [-1, 0],
+            [-1, -1],
+            [0, 2],
+            [-1, 2],
+          ],
+        }
+        const JLSTZ_CCW = {
+          '0>3': [
+            [0, 0],
+            [1, 0],
+            [1, 1],
+            [0, -2],
+            [1, -2],
+          ],
+          '3>2': [
+            [0, 0],
+            [-1, 0],
+            [-1, -1],
+            [0, 2],
+            [-1, 2],
+          ],
+          '2>1': [
+            [0, 0],
+            [-1, 0],
+            [-1, 1],
+            [0, -2],
+            [-1, -2],
+          ],
+          '1>0': [
+            [0, 0],
+            [1, 0],
+            [1, -1],
+            [0, 2],
+            [1, 2],
+          ],
+        }
+        const I_CW = {
+          '0>1': [
+            [0, 0],
+            [-2, 0],
+            [1, 0],
+            [-2, -1],
+            [1, 2],
+          ],
+          '1>2': [
+            [0, 0],
+            [-1, 0],
+            [2, 0],
+            [-1, 2],
+            [2, -1],
+          ],
+          '2>3': [
+            [0, 0],
+            [2, 0],
+            [-1, 0],
+            [2, 1],
+            [-1, -2],
+          ],
+          '3>0': [
+            [0, 0],
+            [1, 0],
+            [-2, 0],
+            [1, -2],
+            [-2, 1],
+          ],
+        }
+        const I_CCW = {
+          '0>3': [
+            [0, 0],
+            [-1, 0],
+            [2, 0],
+            [-1, 2],
+            [2, -1],
+          ],
+          '3>2': [
+            [0, 0],
+            [-2, 0],
+            [1, 0],
+            [-2, -1],
+            [1, 2],
+          ],
+          '2>1': [
+            [0, 0],
+            [1, 0],
+            [-2, 0],
+            [1, -2],
+            [-2, 1],
+          ],
+          '1>0': [
+            [0, 0],
+            [2, 0],
+            [-1, 0],
+            [2, 1],
+            [-1, -2],
+          ],
+        }
+
+        function invertY(list) {
+          return list.map(([x, y]) => [x, -y])
+        }
+        // Pre-invert once (because our y is downward)
+        for (const k in JLSTZ_CW) JLSTZ_CW[k] = invertY(JLSTZ_CW[k])
+        for (const k in JLSTZ_CCW) JLSTZ_CCW[k] = invertY(JLSTZ_CCW[k])
+        for (const k in I_CW) I_CW[k] = invertY(I_CW[k])
+        for (const k in I_CCW) I_CCW[k] = invertY(I_CCW[k])
+
+        function kicksFor(type, from, to, dir) {
+          // O has no kicks (rotation doesn't change blocks in our def anyway)
+          if (type === 'O') return [[0, 0]]
+          const key = `${from}>${to}`
+          const cw = dir === 1
+          if (type === 'I')
+            return cw ? I_CW[key] || [[0, 0]] : I_CCW[key] || [[0, 0]]
+          // JLSTZ includes T/S/Z/J/L
+          return cw ? JLSTZ_CW[key] || [[0, 0]] : JLSTZ_CCW[key] || [[0, 0]]
+        }
+
+        // ========= 7-bag =========
+        function shuffledBag() {
+          const bag = [...KEYS]
+          for (let i = bag.length - 1; i > 0; i--) {
+            const j = (Math.random() * (i + 1)) | 0
+            ;[bag[i], bag[j]] = [bag[j], bag[i]]
+          }
+          return bag
+        }
+
+        // ========= Audio (SFX) =========
+        let audioCtx = null
+        let muted = false
+
+        function ensureAudio() {
+          if (audioCtx) return
+          try {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+          } catch (_) {
+            audioCtx = null
+          }
+        }
+        function beep(freq = 440, dur = 0.05, type = 'square', gain = 0.06) {
+          if (muted) return
+          if (!audioCtx) return
+          const t0 = audioCtx.currentTime
+          const osc = audioCtx.createOscillator()
+          const g = audioCtx.createGain()
+          osc.type = type
+          osc.frequency.setValueAtTime(freq, t0)
+          g.gain.setValueAtTime(gain, t0)
+          g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur)
+          osc.connect(g).connect(audioCtx.destination)
+          osc.start(t0)
+          osc.stop(t0 + dur + 0.01)
+        }
+        const SFX = {
+          move: () => beep(240, 0.03, 'square', 0.05),
+          rotate: () => beep(420, 0.04, 'square', 0.06),
+          hold: () => beep(300, 0.05, 'triangle', 0.06),
+          soft: () => beep(180, 0.02, 'sine', 0.02),
+          hard: () => beep(520, 0.05, 'square', 0.07),
+          lock: () => beep(160, 0.05, 'triangle', 0.05),
+          clear1: () => beep(620, 0.07, 'sine', 0.06),
+          clear2: () => beep(660, 0.08, 'sine', 0.07),
+          clear3: () => beep(720, 0.09, 'sine', 0.08),
+          tetris: () => {
+            beep(880, 0.1, 'square', 0.07)
+            beep(660, 0.12, 'square', 0.06)
+          },
+          tspin: () => {
+            beep(950, 0.08, 'square', 0.07)
+            beep(760, 0.1, 'triangle', 0.06)
+          },
+          gameover: () => {
+            beep(220, 0.15, 'sawtooth', 0.06)
+            beep(110, 0.18, 'sawtooth', 0.05)
+          },
+          pc: () => {
+            beep(1040, 0.12, 'square', 0.07)
+            beep(1240, 0.12, 'square', 0.06)
+          },
+        }
+
+        // ========= Game State =========
+        let grid
+        let current
+        let nextQueue = []
+        let bag = []
+        let hold = null
+        let holdUsed = false
+
+        let score = 0
+        let level = 1
+        let lines = 0
+
+        let combo = -1
+        let b2b = false
+
+        let running = false
+        let paused = false
+        let gameOver = false
+
+        // timing
+        let lastTime = 0
+        let gravAcc = 0
+
+        // lock delay
+        let lockAcc = 0
+
+        // last action for T-spin
+        let lastAction = 'none' // "move" | "rotate" | "drop" | "none"
+        let lastRotateKick = false
+
+        // input states
+        const keyState = {
+          left: false,
+          right: false,
+          down: false,
+        }
+        let moveDir = 0 // -1 left, +1 right
+        let dasAcc = 0
+        let arrAcc = 0
+        let dasCharged = false
+
+        // touch hold states
+        const touchHold = { left: false, right: false, down: false }
+
+        // ========= Utilities =========
+        function makeGrid() {
+          const h = ROWS + HIDDEN
+          return Array.from({ length: h }, () => Array(COLS).fill(null))
+        }
+
+        function spawn(type) {
+          return { type, rot: 0, x: 3, y: 0 }
+        }
+
+        function fillQueue() {
+          while (nextQueue.length < 6) {
+            if (bag.length === 0) bag = shuffledBag()
+            nextQueue.push(bag.pop())
+          }
+        }
+
+        function takeNext() {
+          fillQueue()
+          const t = nextQueue.shift()
+          fillQueue()
+          return t
+        }
+
+        function cellsOf(p) {
+          const shape = PIECES[p.type][p.rot]
+          return shape.map(([dx, dy]) => [p.x + dx, p.y + dy])
+        }
+
+        function inside(x, y) {
+          return x >= 0 && x < COLS && y >= 0 && y < ROWS + HIDDEN
+        }
+
+        function collides(p) {
+          for (const [x, y] of cellsOf(p)) {
+            if (!inside(x, y)) return true
+            if (grid[y][x]) return true
+          }
+          return false
+        }
+
+        function grounded(p) {
+          const down = { ...p, y: p.y + 1 }
+          return collides(down)
+        }
+
+        function merge(p) {
+          for (const [x, y] of cellsOf(p)) {
+            if (y >= 0 && y < ROWS + HIDDEN) grid[y][x] = p.type
+          }
+        }
+
+        function clearLines() {
+          let cleared = 0
+          for (let y = 0; y < ROWS + HIDDEN; y++) {
+            if (grid[y].every((v) => v)) {
+              grid.splice(y, 1)
+              grid.unshift(Array(COLS).fill(null))
+              cleared++
+            }
+          }
+          return cleared
+        }
+
+        function isPerfectClear() {
+          // visible area empty?
+          for (let y = HIDDEN; y < ROWS + HIDDEN; y++) {
+            for (let x = 0; x < COLS; x++) {
+              if (grid[y][x]) return false
+            }
+          }
+          return true
+        }
+
+        // ========= Movement / Rotation (SRS) =========
+        function tryMove(dx, dy) {
+          const p = { ...current, x: current.x + dx, y: current.y + dy }
+          if (!collides(p)) {
+            current = p
+            lastAction = 'move'
+            // reset lock delay if we were grounded
+            if (grounded(current)) lockAcc = 0
+            return true
+          }
+          return false
+        }
+
+        function tryRotate(dir) {
+          const from = current.rot
+          const to = (from + dir + 4) % 4
+          const base = { ...current, rot: to }
+
+          const kicks = kicksFor(current.type, from, to, dir)
+          for (const [kx, ky] of kicks) {
+            const p = { ...base, x: base.x + kx, y: base.y + ky }
+            if (!collides(p)) {
+              current = p
+              lastAction = 'rotate'
+              lastRotateKick = !(kx === 0 && ky === 0)
+              // rotation on ground should reset lock delay
+              if (grounded(current)) lockAcc = 0
+              SFX.rotate()
+              return true
+            }
+          }
+          return false
+        }
+
+        function hardDrop() {
+          let dist = 0
+          while (true) {
+            const p = { ...current, y: current.y + 1 }
+            if (collides(p)) break
+            current = p
+            dist++
+          }
+          score += dist * 2
+          lastAction = 'drop'
+          SFX.hard()
+          lockNow()
+        }
+
+        // ========= T-Spin detection =========
+        function detectTSpin(lockedPiece) {
+          if (lockedPiece.type !== 'T') return false
+          if (lastAction !== 'rotate') return false
+
+          // Our T rotation center corresponds to (x+1, y+2) in our 4x4 coord definition
+          const cx = lockedPiece.x + 1
+          const cy = lockedPiece.y + 2
+
+          const corners = [
+            [cx - 1, cy - 1],
+            [cx + 1, cy - 1],
+            [cx - 1, cy + 1],
+            [cx + 1, cy + 1],
+          ]
+
+          let filled = 0
+          for (const [x, y] of corners) {
+            // outside counts as filled (walls/floor)
+            if (!inside(x, y) || grid[y][x]) filled++
+          }
+          return filled >= 3
+        }
+
+        // ========= Scoring =========
+        function addClearScore({ cleared, tspin }) {
+          let label = '-'
+          let special = false
+
+          if (cleared > 0) {
+            combo++
+            if (combo > 0) score += combo * 50 * level
+
+            let base = 0
+            if (tspin) {
+              special = true
+              // T-Spin: 0/1/2/3 lines
+              const tsp = [400, 800, 1200, 1600]
+              base = tsp[cleared] ?? 0
+              label = `T-Spin ${
+                ['', 'Single', 'Double', 'Triple'][cleared] || ''
+              }`.trim()
+            } else {
+              const normal = [0, 100, 300, 500, 800]
+              base = normal[cleared] ?? 0
+              label = cleared === 4 ? 'Tetris' : `${cleared} lines`
+              if (cleared === 4) special = true
+            }
+
+            // Back-to-back: Tetris or T-Spin line clears
+            if (special) {
+              if (b2b) base = Math.floor(base * 1.5)
+              b2b = true
+            } else {
+              b2b = false
+            }
+
+            score += base * level
+            lines += cleared
+          } else {
+            // no line clear resets combo, but T-Spin no clear can still score
+            combo = -1
+            if (tspin) {
+              // T-Spin no clear
+              score += 400 * level
+              label = 'T-Spin'
+              // usually does not keep B2B; we keep B2B unchanged (common behavior varies)
+            } else {
+              label = '-'
+            }
+          }
+
+          // perfect clear bonus
+          if (cleared > 0 && isPerfectClear()) {
+            score += 2000 * level
+            label = 'Perfect Clear'
+            SFX.pc()
+          }
+
+          // line-based level
+          const newLevel = 1 + Math.floor(lines / 10)
+          if (newLevel !== level) level = newLevel
+
+          // SFX for clears
+          if (cleared === 1) SFX.clear1()
+          if (cleared === 2) SFX.clear2()
+          if (cleared === 3) SFX.clear3()
+          if (cleared === 4) SFX.tetris()
+          if (tspin && cleared > 0) SFX.tspin()
+
+          elLast.textContent = label
+        }
+
+        // ========= Lock / Next =========
+        function lockNow() {
+          // merge
+          merge(current)
+
+          // detect tspin (after merge; corners check uses existing stack)
+          const tspin = detectTSpin(current)
+
+          const cleared = clearLines()
+          addClearScore({ cleared, tspin })
+
+          // reset
+          holdUsed = false
+          lockAcc = 0
+          lastAction = 'none'
+          lastRotateKick = false
+
+          current = spawn(takeNext())
+          if (collides(current)) {
+            running = false
+            gameOver = true
+            setBadge('Game Over')
+            setStatus('Game Over. R でリスタートできます。', 'gameover')
+            SFX.gameover()
+          } else {
+            SFX.lock()
+          }
+        }
+
+        function doHold() {
+          if (!running || paused || gameOver) return
+          if (holdUsed) return
+
+          holdUsed = true
+          const cur = current.type
+          if (hold === null) {
+            hold = cur
+            current = spawn(takeNext())
+          } else {
+            current = spawn(hold)
+            hold = cur
+          }
+          // reset lock delay because state changed
+          lockAcc = 0
+          lastAction = 'none'
+          lastRotateKick = false
+          SFX.hold()
+
+          if (collides(current)) {
+            running = false
+            gameOver = true
+            setBadge('Game Over')
+            setStatus('Game Over（ホールド後に配置不可）', 'gameover')
+            SFX.gameover()
+          }
+        }
+
+        // ========= Ghost =========
+        function ghostOf(p) {
+          const g = { ...p }
+          while (!collides({ ...g, y: g.y + 1 })) g.y++
+          return g
+        }
+
+        // ========= Rendering =========
+        function drawGridLines() {
+          ctx.strokeStyle = 'rgba(148,163,184,.10)'
+          ctx.lineWidth = 1
+          for (let x = 1; x < COLS; x++) {
+            ctx.beginPath()
+            ctx.moveTo(x * CELL + 0.5, 0)
+            ctx.lineTo(x * CELL + 0.5, ROWS * CELL)
+            ctx.stroke()
+          }
+          for (let y = 1; y < ROWS; y++) {
+            ctx.beginPath()
+            ctx.moveTo(0, y * CELL + 0.5)
+            ctx.lineTo(COLS * CELL, y * CELL + 0.5)
+            ctx.stroke()
+          }
+        }
+
+        function drawCell(c, x, y, color, alpha = 1) {
+          const vy = y - HIDDEN
+          if (vy < 0) return
+          const px = x * CELL
+          const py = vy * CELL
+          c.globalAlpha = alpha
+          c.fillStyle = color
+          c.fillRect(px + 1, py + 1, CELL - 2, CELL - 2)
+          c.globalAlpha = alpha * 0.35
+          c.fillStyle = '#ffffff'
+          c.fillRect(px + 2, py + 2, CELL - 4, 3)
+          c.globalAlpha = 1
+        }
+
+        function drawMiniPiece(c, type, ox, oy, cell) {
+          const shape = PIECES[type][0]
+          const xs = shape.map((p) => p[0])
+          const ys = shape.map((p) => p[1])
+          const minX = Math.min(...xs)
+          const minY = Math.min(...ys)
+          for (const [dx, dy] of shape) {
+            const x = dx - minX
+            const y = dy - minY
+            c.fillStyle = COLORS[type]
+            c.fillRect(ox + x * cell, oy + y * cell, cell - 2, cell - 2)
+            c.globalAlpha = 0.35
+            c.fillStyle = '#ffffff'
+            c.fillRect(ox + x * cell + 1, oy + y * cell + 1, cell - 4, 3)
+            c.globalAlpha = 1
+          }
+        }
+
+        function renderNext() {
+          nextCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height)
+          const cell = 18
+          const boxH = 70
+          const list = nextQueue.slice(0, 5)
+          list.forEach((t, i) =>
+            drawMiniPiece(nextCtx, t, 14, 10 + i * boxH, cell)
+          )
+        }
+
+        function renderHold() {
+          holdCtx.clearRect(0, 0, holdCanvas.width, holdCanvas.height)
+          if (!hold) return
+          drawMiniPiece(holdCtx, hold, 14, 16, 22)
+        }
+
+        function render() {
+          ctx.clearRect(0, 0, COLS * CELL, ROWS * CELL)
+          drawGridLines()
+
+          // fixed blocks
+          for (let y = HIDDEN; y < ROWS + HIDDEN; y++) {
+            for (let x = 0; x < COLS; x++) {
+              const v = grid[y][x]
+              if (v) drawCell(ctx, x, y, COLORS[v], 1)
+            }
+          }
+
+          if (running && !gameOver) {
+            // ghost
+            const g = ghostOf(current)
+            for (const [x, y] of cellsOf(g)) drawCell(ctx, x, y, COLORS.G, 0.35)
+            // current
+            for (const [x, y] of cellsOf(current))
+              drawCell(ctx, x, y, COLORS[current.type], 1)
+          }
+
+          renderNext()
+          renderHold()
+
+          // UI
+          elScore.textContent = String(score)
+          elLevel.textContent = String(level)
+          elLines.textContent = String(lines)
+          elCombo.textContent = combo >= 0 ? String(combo) : '-'
+          elB2B.textContent = b2b ? 'ON' : '-'
+        }
+
+        // ========= Status / Badge =========
+        function setStatus(text, kind) {
+          elStatus.textContent = text || ''
+          elStatus.className =
+            'status' +
+            (kind === 'gameover' ? ' gameover' : kind === 'ok' ? ' ok' : '')
+        }
+        function setBadge(text) {
+          elBadge.textContent = text
+        }
+
+        // ========= Input (Keyboard) =========
+        function updateMoveDir() {
+          const l = keyState.left || touchHold.left
+          const r = keyState.right || touchHold.right
+          if (l && !r) return -1
+          if (r && !l) return 1
+          return 0
+        }
+
+        function beginHorizontal(dir) {
+          if (dir === 0) return
+          moveDir = dir
+          dasAcc = 0
+          arrAcc = 0
+          dasCharged = false
+          // immediate step
+          if (running && !paused && !gameOver) {
+            if (tryMove(dir, 0)) SFX.move()
+            render()
+          }
+        }
+
+        function handleKeyDown(e) {
+          ensureAudio()
+          if (audioCtx && audioCtx.state === 'suspended')
+            audioCtx.resume().catch(() => {})
+
+          const code = e.code
+          if (
+            [
+              'ArrowLeft',
+              'ArrowRight',
+              'ArrowDown',
+              'ArrowUp',
+              'Space',
+            ].includes(code)
+          )
+            e.preventDefault()
+
+          // toggles / one-shot
+          if (code === 'KeyP') {
+            togglePause()
+            return
+          }
+          if (code === 'KeyR') {
+            restart()
+            return
+          }
+          if (code === 'KeyM') {
+            toggleMute()
+            return
+          }
+
+          if (
+            code === 'KeyC' ||
+            code === 'ShiftLeft' ||
+            code === 'ShiftRight'
+          ) {
+            doHold()
+            render()
+            return
+          }
+
+          if (!running || paused || gameOver) return
+
+          if (code === 'ArrowUp' || code === 'KeyX') {
+            tryRotate(1)
+            render()
+            return
+          }
+          if (code === 'KeyZ') {
+            tryRotate(-1)
+            render()
+            return
+          }
+          if (code === 'Space') {
+            hardDrop()
+            render()
+            return
+          }
+
+          if (code === 'ArrowDown') {
+            if (!keyState.down) SFX.soft()
+            keyState.down = true
+            return
+          }
+
+          if (code === 'ArrowLeft') {
+            if (!keyState.left) {
+              keyState.left = true
+              const dir = updateMoveDir()
+              beginHorizontal(dir)
+            }
+            return
+          }
+          if (code === 'ArrowRight') {
+            if (!keyState.right) {
+              keyState.right = true
+              const dir = updateMoveDir()
+              beginHorizontal(dir)
+            }
+            return
+          }
+        }
+
+        function handleKeyUp(e) {
+          const code = e.code
+          if (code === 'ArrowDown') {
+            keyState.down = false
+            return
+          }
+
+          if (code === 'ArrowLeft') keyState.left = false
+          if (code === 'ArrowRight') keyState.right = false
+
+          const dir = updateMoveDir()
+          if (dir !== moveDir) {
+            moveDir = dir
+            dasAcc = 0
+            arrAcc = 0
+            dasCharged = false
+            if (dir !== 0) beginHorizontal(dir)
+          }
+        }
+
+        window.addEventListener('keydown', handleKeyDown, { passive: false })
+        window.addEventListener('keyup', handleKeyUp)
+
+        // ========= Touch (Buttons) =========
+        function bindTouchButtons() {
+          if (!touchRoot) return
+          const buttons = [...touchRoot.querySelectorAll('.tbtn')]
+
+          function setHold(act, v) {
+            if (act === 'left') touchHold.left = v
+            if (act === 'right') touchHold.right = v
+            if (act === 'down') touchHold.down = v
+
+            const dir = updateMoveDir()
+            if (dir !== moveDir) {
+              beginHorizontal(dir)
+            }
+          }
+
+          buttons.forEach((btn) => {
+            const act = btn.dataset.act
+
+            const onDown = (ev) => {
+              ev.preventDefault()
+              ensureAudio()
+              if (audioCtx && audioCtx.state === 'suspended')
+                audioCtx.resume().catch(() => {})
+
+              if (act === 'left' || act === 'right' || act === 'down') {
+                setHold(act, true)
+                if (act === 'down') SFX.soft()
+                return
+              }
+              // one-shot actions
+              if (act === 'rotate') {
+                if (running && !paused && !gameOver) tryRotate(1)
+                render()
+                return
+              }
+              if (act === 'hard') {
+                if (running && !paused && !gameOver) hardDrop()
+                render()
+                return
+              }
+              if (act === 'hold') {
+                doHold()
+                render()
+                return
+              }
+              if (act === 'pause') {
+                togglePause()
+                return
+              }
+            }
+
+            const onUp = (ev) => {
+              ev.preventDefault()
+              if (act === 'left' || act === 'right' || act === 'down') {
+                setHold(act, false)
+                return
+              }
+            }
+
+            btn.addEventListener('pointerdown', onDown, { passive: false })
+            btn.addEventListener('pointerup', onUp, { passive: false })
+            btn.addEventListener('pointercancel', onUp, { passive: false })
+            btn.addEventListener('pointerleave', onUp, { passive: false })
+          })
+        }
+        bindTouchButtons()
+
+        // ========= Touch (Swipe on Board) =========
+        let pointerActive = false
+        let pStart = null
+        let pLast = null
+        let pTapTimer = null
+
+        board.addEventListener(
+          'pointerdown',
+          (ev) => {
+            ev.preventDefault()
+            ensureAudio()
+            if (audioCtx && audioCtx.state === 'suspended')
+              audioCtx.resume().catch(() => {})
+            pointerActive = true
+            pStart = { x: ev.clientX, y: ev.clientY, t: performance.now() }
+            pLast = { ...pStart }
+            board.setPointerCapture(ev.pointerId)
+          },
+          { passive: false }
+        )
+
+        board.addEventListener(
+          'pointermove',
+          (ev) => {
+            if (!pointerActive) return
+            ev.preventDefault()
+            if (!running || paused || gameOver) return
+
+            const now = performance.now()
+            const curPos = { x: ev.clientX, y: ev.clientY, t: now }
+            const dx = curPos.x - pLast.x
+            const dy = curPos.y - pLast.y
+
+            // horizontal swipe: move per threshold
+            const threshX = 22
+            if (Math.abs(curPos.x - pStart.x) > threshX) {
+              const step = curPos.x - pLast.x
+              if (step > threshX) {
+                if (tryMove(1, 0)) SFX.move()
+                pLast.x = curPos.x
+                render()
+              }
+              if (step < -threshX) {
+                if (tryMove(-1, 0)) SFX.move()
+                pLast.x = curPos.x
+                render()
+              }
+            }
+
+            // vertical: down swipe => soft drop (toggle while dragging)
+            const totalDy = curPos.y - pStart.y
+            touchHold.down = totalDy > 26
+
+            // up swipe => hard drop (one-shot)
+            if (totalDy < -55) {
+              touchHold.down = false
+              hardDrop()
+              pointerActive = false
+              render()
+            }
+          },
+          { passive: false }
+        )
+
+        board.addEventListener(
+          'pointerup',
+          (ev) => {
+            if (!pointerActive) return
+            ev.preventDefault()
+
+            const now = performance.now()
+            const dt = now - pStart.t
+            const dx = ev.clientX - pStart.x
+            const dy = ev.clientY - pStart.y
+
+            // tap: rotate
+            const isTap = Math.abs(dx) < 10 && Math.abs(dy) < 10 && dt < 220
+            touchHold.down = false
+
+            if (isTap && running && !paused && !gameOver) {
+              tryRotate(1)
+              render()
+            }
+
+            pointerActive = false
+          },
+          { passive: false }
+        )
+
+        board.addEventListener('pointercancel', () => {
+          pointerActive = false
+          touchHold.down = false
+        })
+
+        // ========= Buttons =========
+        btnStart.addEventListener('click', () => {
+          ensureAudio()
+          if (audioCtx && audioCtx.state === 'suspended')
+            audioCtx.resume().catch(() => {})
+          start()
+        })
+        btnPause.addEventListener('click', () => togglePause())
+        btnRestart.addEventListener('click', () => restart())
+        btnMute.addEventListener('click', () => toggleMute())
+
+        function toggleMute() {
+          muted = !muted
+          btnMute.textContent = muted ? 'Unmute' : 'Mute'
+          setStatus(muted ? 'Muted' : '', muted ? '' : '')
+        }
+
+        // ========= Main Loop =========
+        function tick(time) {
+          render() // render every frame (simple & stable)
+
+          if (!running || paused || gameOver) {
+            requestAnimationFrame(tick)
+            return
+          }
+
+          const dt = time - lastTime
+          lastTime = time
+
+          // 1) horizontal auto shift
+          const desiredDir = updateMoveDir()
+          if (desiredDir !== moveDir) {
+            moveDir = desiredDir
+            dasAcc = 0
+            arrAcc = 0
+            dasCharged = false
+            if (moveDir !== 0) beginHorizontal(moveDir)
+          } else if (moveDir !== 0) {
+            dasAcc += dt
+            if (!dasCharged) {
+              if (dasAcc >= DAS_MS) {
+                dasCharged = true
+                arrAcc = 0
+              }
+            } else {
+              arrAcc += dt
+              while (arrAcc >= ARR_MS) {
+                arrAcc -= ARR_MS
+                if (tryMove(moveDir, 0)) SFX.move()
+                else break
+              }
+            }
+          }
+
+          // 2) gravity / soft drop
+          const soft = keyState.down || touchHold.down
+          const interval = soft ? SOFT_DROP_MS : gravityMs(level)
+          gravAcc += dt
+
+          while (gravAcc >= interval) {
+            gravAcc -= interval
+
+            const movedDown = tryMove(0, 1)
+            if (movedDown) {
+              if (soft) score += 1 // soft drop point per cell
+            } else {
+              // can't move down => start/increase lock delay
+              break
+            }
+          }
+
+          // 3) lock delay handling
+          if (grounded(current)) {
+            lockAcc += dt
+            if (lockAcc >= LOCK_DELAY_MS) {
+              lockNow()
+            }
+          } else {
+            lockAcc = 0
+          }
+
+          requestAnimationFrame(tick)
+        }
+
+        // ========= Control Flow =========
+        function start() {
+          if (gameOver) restart()
+          if (!running) {
+            running = true
+            paused = false
+            setBadge('Running')
+            setStatus('')
+            lastTime = performance.now()
+            requestAnimationFrame(tick)
+          }
+        }
+
+        function togglePause() {
+          if (gameOver) return
+          if (!running) {
+            // allow pause button to start
+            start()
+            return
+          }
+          paused = !paused
+          setBadge(paused ? 'Paused' : 'Running')
+          setStatus(paused ? 'Paused' : '')
+          if (!paused) {
+            lastTime = performance.now()
+          }
+        }
+
+        function restart() {
+          grid = makeGrid()
+          nextQueue = []
+          bag = []
+          hold = null
+          holdUsed = false
+
+          score = 0
+          level = 1
+          lines = 0
+
+          combo = -1
+          b2b = false
+
+          running = true
+          paused = false
+          gameOver = false
+
+          gravAcc = 0
+          lockAcc = 0
+          lastAction = 'none'
+          lastRotateKick = false
+
+          keyState.left = keyState.right = keyState.down = false
+          touchHold.left = touchHold.right = touchHold.down = false
+          moveDir = 0
+          dasAcc = 0
+          arrAcc = 0
+          dasCharged = false
+
+          fillQueue()
+          current = spawn(takeNext())
+
+          setBadge('Running')
+          setStatus('')
+          elLast.textContent = '-'
+          lastTime = performance.now()
+        }
+
+        function init() {
+          grid = makeGrid()
+          nextQueue = []
+          bag = shuffledBag()
+          fillQueue()
+          current = spawn(takeNext())
+
+          score = 0
+          level = 1
+          lines = 0
+          combo = -1
+          b2b = false
+
+          running = false
+          paused = false
+          gameOver = false
+
+          setBadge('Ready')
+          setStatus('Start を押してください。')
+          btnMute.textContent = 'Mute'
+          render()
+          lastTime = performance.now()
+          requestAnimationFrame(tick)
+        }
+
+        init()
+      })()
+    </script>
+  </body>
+</html>
