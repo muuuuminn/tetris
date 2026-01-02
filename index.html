@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"
     />
-    <title>Tetris Mobile Fixed UI</title>
+    <title>Tetris Mobile (Left Board / Right Next+Hold)</title>
     <style>
       :root {
         --bg: #0b0f14;
@@ -18,6 +18,7 @@
         --btnh: rgba(148, 163, 184, 0.55);
         --danger: #ef4444;
         --accent: #22c55e;
+        --shadow: rgba(0, 0, 0, 0.35);
       }
       html,
       body {
@@ -38,22 +39,23 @@
         box-sizing: border-box;
         padding: calc(env(safe-area-inset-top) + 10px) 10px
           calc(env(safe-area-inset-bottom) + 10px) 10px;
-        max-width: 560px;
+        max-width: 680px;
         margin: 0 auto;
 
         display: grid;
-        grid-template-rows: auto auto 1fr auto auto;
+        grid-template-rows: auto 1fr auto;
         gap: 10px;
         min-height: 0;
       }
 
+      /* Top bar: minimal always-visible */
       .topbar {
         display: flex;
-        align-items: flex-start;
+        align-items: center;
         justify-content: space-between;
         gap: 10px;
       }
-      .pills {
+      .miniPills {
         display: flex;
         flex-wrap: wrap;
         gap: 6px;
@@ -74,7 +76,7 @@
       }
       .pill b {
         color: var(--text);
-        font-weight: 700;
+        font-weight: 800;
       }
       .pill.ok {
         color: var(--accent);
@@ -83,13 +85,53 @@
         color: var(--danger);
       }
 
-      .miniRow {
+      .topActions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .iconBtn {
+        background: rgba(16, 24, 38, 0.55);
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        color: var(--text);
+        border-radius: 999px;
+        padding: 8px 12px;
+        font-size: 13px;
+        font-weight: 800;
+        cursor: pointer;
+        touch-action: none;
+      }
+      .iconBtn:active {
+        border-color: var(--btnh);
+        transform: translateY(1px);
+      }
+
+      /* Main: left board, right sidebar */
+      .main {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: auto auto;
         gap: 10px;
+        align-items: center;
+        justify-content: center;
         min-height: 0;
       }
-      .miniPanel {
+
+      .boardWrap {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 0;
+      }
+
+      .sidebar {
+        display: grid;
+        grid-template-rows: auto 1fr;
+        gap: 10px;
+        min-height: 0;
+        align-self: stretch;
+      }
+
+      .panel {
         background: var(--panel);
         border: 1px solid rgba(148, 163, 184, 0.18);
         border-radius: 14px;
@@ -97,7 +139,7 @@
         box-sizing: border-box;
         min-height: 0;
       }
-      .miniTitle {
+      .panelTitle {
         margin: 0 0 8px 0;
         font-size: 11px;
         letter-spacing: 0.08em;
@@ -105,7 +147,7 @@
         color: var(--muted);
       }
 
-      /* canvasは「CSSで伸ばさない」。サイズはJSで確定する。 */
+      /* canvas: DO NOT stretch in CSS; JS sets size */
       canvas {
         display: block;
         background: #070b10;
@@ -116,29 +158,7 @@
         touch-action: none;
       }
 
-      .boardArea {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 0;
-      }
-
-      .status {
-        text-align: center;
-        font-size: 13px;
-        color: var(--muted);
-        min-height: 18px;
-      }
-      .status.gameover {
-        color: var(--danger);
-        font-weight: 700;
-      }
-      .status.ok {
-        color: var(--accent);
-        font-weight: 700;
-      }
-
-      /* 下部操作：常に見える（iPhone下部セーフエリアも考慮） */
+      /* Controls (sticky bottom) */
       .controls {
         position: sticky;
         bottom: calc(env(safe-area-inset-bottom) + 8px);
@@ -171,7 +191,7 @@
         border-radius: 14px;
         padding: 14px 10px;
         font-size: 16px;
-        font-weight: 800;
+        font-weight: 900;
         line-height: 1;
         touch-action: none;
       }
@@ -179,7 +199,7 @@
         display: block;
         margin-top: 6px;
         font-size: 11px;
-        font-weight: 600;
+        font-weight: 700;
         color: var(--muted);
         line-height: 1.2;
       }
@@ -199,28 +219,91 @@
         border-radius: 12px;
         padding: 10px 10px;
         font-size: 13px;
-        font-weight: 700;
+        font-weight: 900;
         cursor: pointer;
       }
       .tinyActions button:active {
         border-color: var(--btnh);
         transform: translateY(1px);
       }
-      .hint {
-        color: var(--muted);
-        font-size: 11px;
-        line-height: 1.45;
-        text-align: center;
-        opacity: 0.95;
+
+      /* Overlay for hidden UI */
+      .overlay {
+        position: fixed;
+        inset: 0;
+        padding: calc(env(safe-area-inset-top) + 12px) 12px
+          calc(env(safe-area-inset-bottom) + 12px) 12px;
+        background: rgba(0, 0, 0, 0.58);
+        backdrop-filter: blur(6px);
+        display: none;
+        z-index: 999;
+        box-sizing: border-box;
+      }
+      .overlay.show {
+        display: block;
       }
 
-      /* PCで開いたときも破綻しない */
-      @media (min-width: 900px) {
-        body {
-          touch-action: auto;
+      .sheet {
+        max-width: 680px;
+        margin: 0 auto;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .sheetHeader {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+      }
+      .sheetTitle {
+        font-weight: 900;
+        font-size: 16px;
+      }
+      .sheetBody {
+        background: rgba(16, 24, 38, 0.92);
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        border-radius: 16px;
+        padding: 12px;
+        box-shadow: 0 10px 30px var(--shadow);
+        overflow: auto;
+        min-height: 0;
+      }
+      .sheetGrid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .kv {
+        background: rgba(15, 23, 42, 0.65);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 14px;
+        padding: 10px;
+        font-variant-numeric: tabular-nums;
+      }
+      .kv .k {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .kv .v {
+        font-size: 18px;
+        font-weight: 900;
+        margin-top: 4px;
+      }
+      .hint {
+        margin-top: 10px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.55;
+      }
+
+      @media (max-width: 380px) {
+        .btn {
+          padding: 12px 8px;
         }
-        .app {
-          max-width: 980px;
+        .btnGrid3 {
+          gap: 8px;
         }
       }
     </style>
@@ -229,33 +312,33 @@
   <body>
     <div class="app">
       <div class="topbar">
-        <div class="pills">
+        <div class="miniPills">
           <span class="pill">Score <b id="score">0</b></span>
           <span class="pill">Lv <b id="level">1</b></span>
           <span class="pill">Lines <b id="lines">0</b></span>
-          <span class="pill">Combo <b id="combo">-</b></span>
-          <span class="pill">B2B <b id="b2b">-</b></span>
-          <span class="pill">Last <b id="last">-</b></span>
+          <span class="pill" id="badge">Ready</span>
         </div>
-        <span class="pill" id="badge">Ready</span>
-      </div>
-
-      <div class="miniRow">
-        <div class="miniPanel">
-          <div class="miniTitle">Hold</div>
-          <canvas id="hold"></canvas>
-        </div>
-        <div class="miniPanel">
-          <div class="miniTitle">Next</div>
-          <canvas id="next"></canvas>
+        <div class="topActions">
+          <button class="iconBtn" id="btnInfo">Info</button>
         </div>
       </div>
 
-      <div class="boardArea">
-        <canvas id="board"></canvas>
-      </div>
+      <div class="main">
+        <div class="boardWrap">
+          <canvas id="board"></canvas>
+        </div>
 
-      <div class="status" id="status"></div>
+        <div class="sidebar">
+          <div class="panel">
+            <div class="panelTitle">Next</div>
+            <canvas id="next"></canvas>
+          </div>
+          <div class="panel">
+            <div class="panelTitle">Hold</div>
+            <canvas id="hold"></canvas>
+          </div>
+        </div>
+      </div>
 
       <div class="controls" id="controls">
         <div class="btnGrid3">
@@ -279,11 +362,55 @@
           <button id="btnMute">Mute</button>
           <button id="btnStart">Start</button>
         </div>
+      </div>
+    </div>
 
-        <div class="hint">
-          盤面ジェスチャ: タップ=回転 / 左右スワイプ=移動 / 下スワイプ=ソフト /
-          上スワイプ=ハード<br />
-          キーボード(任意): ←→↓ / Z,X,↑ / Space / C / P / R / M
+    <!-- Hidden UI (Info) -->
+    <div class="overlay" id="overlay" aria-hidden="true">
+      <div class="sheet">
+        <div class="sheetHeader">
+          <div class="sheetTitle">Info</div>
+          <button class="iconBtn" id="btnClose">Close</button>
+        </div>
+        <div class="sheetBody">
+          <div class="sheetGrid">
+            <div class="kv">
+              <div class="k">Score</div>
+              <div class="v" id="infoScore">0</div>
+            </div>
+            <div class="kv">
+              <div class="k">Level</div>
+              <div class="v" id="infoLevel">1</div>
+            </div>
+            <div class="kv">
+              <div class="k">Lines</div>
+              <div class="v" id="infoLines">0</div>
+            </div>
+            <div class="kv">
+              <div class="k">Combo</div>
+              <div class="v" id="infoCombo">-</div>
+            </div>
+            <div class="kv">
+              <div class="k">B2B</div>
+              <div class="v" id="infoB2b">-</div>
+            </div>
+            <div class="kv">
+              <div class="k">Last</div>
+              <div class="v" id="infoLast">-</div>
+            </div>
+            <div class="kv" style="grid-column: 1 / -1">
+              <div class="k">Status</div>
+              <div class="v" id="infoStatus">Ready</div>
+            </div>
+          </div>
+
+          <div class="hint">
+            <b>盤面ジェスチャ</b><br />
+            タップ=回転 / 左右スワイプ=移動 / 下スワイプ=ソフト /
+            上スワイプ=ハード<br /><br />
+            <b>キーボード(任意)</b><br />
+            ←→↓ / Z,X,↑ / Space / C / P / R / M
+          </div>
         </div>
       </div>
     </div>
@@ -295,7 +422,6 @@
         const ROWS = 20
         const HIDDEN = 2
 
-        // Input tuning
         const DAS_MS = 140
         const ARR_MS = 35
         const SOFT_DROP_MS = 28
@@ -320,18 +446,28 @@
         const elScore = document.getElementById('score')
         const elLevel = document.getElementById('level')
         const elLines = document.getElementById('lines')
-        const elCombo = document.getElementById('combo')
-        const elB2B = document.getElementById('b2b')
-        const elLast = document.getElementById('last')
-        const elStatus = document.getElementById('status')
         const elBadge = document.getElementById('badge')
 
         const btnMute = document.getElementById('btnMute')
         const btnStart = document.getElementById('btnStart')
 
-        // Render sizing (JS-only)
+        // Info overlay
+        const overlay = document.getElementById('overlay')
+        const btnInfo = document.getElementById('btnInfo')
+        const btnClose = document.getElementById('btnClose')
+
+        const infoScore = document.getElementById('infoScore')
+        const infoLevel = document.getElementById('infoLevel')
+        const infoLines = document.getElementById('infoLines')
+        const infoCombo = document.getElementById('infoCombo')
+        const infoB2b = document.getElementById('infoB2b')
+        const infoLast = document.getElementById('infoLast')
+        const infoStatus = document.getElementById('infoStatus')
+
+        // ========= Render sizing (JS-only) =========
         let CELL = 28
         let DPR = 1
+        let SIDEBAR_W = 150
 
         function setCanvasSize(canvas, cssW, cssH, context) {
           DPR = Math.max(1, Math.floor(window.devicePixelRatio || 1))
@@ -343,46 +479,46 @@
         }
 
         function resizeAll() {
-          // compute available for board from actual layout
           const topbarH = document
             .querySelector('.topbar')
             .getBoundingClientRect().height
-          const miniH = document
-            .querySelector('.miniRow')
-            .getBoundingClientRect().height
-          const statusH = elStatus.getBoundingClientRect().height
           const controlsH = controls.getBoundingClientRect().height
 
           const vh = window.innerHeight
           const vw = document.documentElement.clientWidth
+          const containerW = Math.min(vw - 20, 680)
 
-          const maxBoardW = Math.min(vw - 20, 560)
-          const availH = Math.max(
-            220,
-            vh - (topbarH + miniH + statusH + controlsH + 40)
+          // Sidebar width (Next/Hold column)
+          SIDEBAR_W = Math.max(
+            120,
+            Math.min(180, Math.floor(containerW * 0.28))
           )
 
-          const cellW = Math.floor(maxBoardW / COLS)
-          const cellH = Math.floor(availH / ROWS)
+          const gap = 10
+          const boardMaxW = Math.max(160, containerW - SIDEBAR_W - gap)
 
+          // Height available for the main row
+          const availH = Math.max(240, vh - (topbarH + controlsH + 40))
+
+          const cellW = Math.floor(boardMaxW / COLS)
+          const cellH = Math.floor(availH / ROWS)
           CELL = Math.max(18, Math.min(36, Math.min(cellW, cellH)))
 
           const boardW = COLS * CELL
           const boardH = ROWS * CELL
-
           setCanvasSize(board, boardW, boardH, ctx)
 
-          // Hold / Next sizing: make them stable (not stretchy)
-          const miniPanelW = Math.floor((Math.min(vw - 20, 560) - 10) / 2)
-          const holdW = miniPanelW - 20
-          const nextW = miniPanelW - 20
+          // Sidebar canvases: consistent widths
+          const sideInnerW = SIDEBAR_W - 20 // panel padding approx
+          const nextW = Math.max(110, sideInnerW)
+          const holdW = Math.max(110, sideInnerW)
 
-          const miniCell = Math.max(12, Math.min(18, Math.floor(holdW / 9)))
+          const miniCell = Math.max(10, Math.min(16, Math.floor(nextW / 9)))
+          const nextH = miniCell * 10 + 30 // 5 pieces * (2 rows) + spacing
           const holdH = miniCell * 4 + 18
-          const nextH = miniCell * 10 + 30
 
-          setCanvasSize(holdCanvas, holdW, holdH, holdCtx)
           setCanvasSize(nextCanvas, nextW, nextH, nextCtx)
+          setCanvasSize(holdCanvas, holdW, holdH, holdCtx)
 
           render()
         }
@@ -803,6 +939,7 @@
         let lines = 0
         let combo = -1
         let b2b = false
+        let lastLabel = '-'
 
         let running = false
         let paused = false
@@ -811,7 +948,7 @@
         let lastTime = 0
         let gravAcc = 0
         let lockAcc = 0
-        let lastAction = 'none' // move/rotate/drop/none
+        let lastAction = 'none'
 
         const keyState = { left: false, right: false, down: false }
         const touchHold = { left: false, right: false, down: false }
@@ -1001,7 +1138,7 @@
           if (cleared === 4) SFX.tetris()
           if (tspin && cleared > 0) SFX.tspin()
 
-          elLast.textContent = label
+          lastLabel = label
         }
 
         // ========= Lock/Hold =========
@@ -1020,7 +1157,6 @@
             running = false
             gameOver = true
             setBadge('Game Over', true)
-            setStatus('Game Over. Restartで再開できます。', 'gameover')
             SFX.gameover()
           } else {
             SFX.lock()
@@ -1048,7 +1184,6 @@
             running = false
             gameOver = true
             setBadge('Game Over', true)
-            setStatus('Game Over（ホールド後に配置不可）', 'gameover')
             SFX.gameover()
           }
         }
@@ -1120,18 +1255,18 @@
           const h = holdCanvas.height / DPR
           holdCtx.clearRect(0, 0, w, h)
           if (!hold) return
-          const cell = Math.max(12, Math.min(18, Math.floor(w / 9)))
-          drawMiniPiece(holdCtx, hold, 10, 10, cell)
+          const cell = Math.max(10, Math.min(16, Math.floor(w / 9)))
+          drawMiniPiece(holdCtx, hold, 8, 8, cell)
         }
 
         function renderNext() {
           const w = nextCanvas.width / DPR
           const h = nextCanvas.height / DPR
           nextCtx.clearRect(0, 0, w, h)
-          const cell = Math.max(11, Math.min(16, Math.floor(w / 9)))
+          const cell = Math.max(10, Math.min(16, Math.floor(w / 9)))
           const list = nextQueue.slice(0, 5)
           list.forEach((t, i) => {
-            drawMiniPiece(nextCtx, t, 10, 10 + i * (cell * 2 + 10), cell)
+            drawMiniPiece(nextCtx, t, 8, 8 + i * (cell * 2 + 10), cell)
           })
         }
 
@@ -1161,19 +1296,29 @@
           elScore.textContent = String(score)
           elLevel.textContent = String(level)
           elLines.textContent = String(lines)
-          elCombo.textContent = combo >= 0 ? String(combo) : '-'
-          elB2B.textContent = b2b ? 'ON' : '-'
+
+          // keep overlay stats in sync
+          infoScore.textContent = String(score)
+          infoLevel.textContent = String(level)
+          infoLines.textContent = String(lines)
+          infoCombo.textContent = combo >= 0 ? String(combo) : '-'
+          infoB2b.textContent = b2b ? 'ON' : '-'
+          infoLast.textContent = lastLabel ?? '-'
+          infoStatus.textContent = gameOver
+            ? 'Game Over'
+            : paused
+            ? 'Paused'
+            : running
+            ? 'Running'
+            : 'Ready'
         }
 
         // ========= UI =========
-        function setStatus(text, kind) {
-          elStatus.textContent = text || ''
-          elStatus.className = 'status' + (kind ? ' ' + kind : '')
-        }
         function setBadge(text, bad = false) {
           elBadge.textContent = text
           elBadge.className =
             'pill' + (bad ? ' bad' : text === 'Running' ? ' ok' : '')
+          render()
         }
 
         // ========= Input repeat =========
@@ -1440,6 +1585,22 @@
           touchHold.down = false
         })
 
+        // ========= Overlay =========
+        function openInfo() {
+          overlay.classList.add('show')
+          overlay.setAttribute('aria-hidden', 'false')
+          render()
+        }
+        function closeInfo() {
+          overlay.classList.remove('show')
+          overlay.setAttribute('aria-hidden', 'true')
+        }
+        btnInfo.addEventListener('click', () => openInfo())
+        btnClose.addEventListener('click', () => closeInfo())
+        overlay.addEventListener('click', (e) => {
+          if (e.target === overlay) closeInfo()
+        })
+
         // ========= Mute/Start =========
         function toggleMute() {
           muted = !muted
@@ -1522,7 +1683,6 @@
             running = true
             paused = false
             setBadge('Running', false)
-            setStatus('')
             lastTime = performance.now()
           }
         }
@@ -1535,7 +1695,6 @@
           }
           paused = !paused
           setBadge(paused ? 'Paused' : 'Running', false)
-          setStatus(paused ? 'Paused' : '')
           if (!paused) lastTime = performance.now()
         }
 
@@ -1551,6 +1710,7 @@
           lines = 0
           combo = -1
           b2b = false
+          lastLabel = '-'
 
           running = true
           paused = false
@@ -1570,8 +1730,6 @@
           current = spawn(takeNext())
 
           setBadge('Running', false)
-          setStatus('')
-          elLast.textContent = '-'
           lastTime = performance.now()
           render()
         }
@@ -1589,16 +1747,15 @@
           lines = 0
           combo = -1
           b2b = false
+          lastLabel = '-'
 
           running = false
           paused = false
           gameOver = false
 
           setBadge('Ready', false)
-          setStatus('Startで開始できます。')
           btnMute.textContent = 'Mute'
 
-          // layout stable -> resize then start RAF
           requestAnimationFrame(() => {
             resizeAll()
             lastTime = performance.now()
